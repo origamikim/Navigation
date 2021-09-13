@@ -1,0 +1,138 @@
+import numpy as np
+import matplotlib.pyplot as plt 
+import itertools
+import time
+def factorial(n):
+    result=1
+    for i in range(n):
+        result *= i+1
+    return result
+def combination(n,r):
+    k=(factorial(n)/factorial(r))/factorial(n-r)
+    return k
+
+m=10 #width
+n=10 #height
+def velocity(traffic): 
+    if traffic<100: #velocity depends on the traffic
+        v=1 #under the limit, every car will speed up to the speed limit
+    else:
+        v=30/(traffic-70) #over the limit, cars will slow donwn respect to the traffic
+    return v
+def volume(traffic): #amout of moving
+    traffic_volume=(velocity(traffic)*traffic) #defined by the #of cars * velocity
+    return traffic_volume
+def traffic(m=m,n=n,print_out=True): # #of cars
+    global road # road : the plot suggesting
+    road=np.zeros((m,n)).astype('int') 
+    for i in range(n):
+        for j in range(m):
+            R1=np.random.normal(1.01,0.2) #random constants according to the normal distribution
+            R2=np.random.normal(1.01,0.2)
+            R3=np.random.normal(1.01,0.3)
+            if i==0 and j==0:
+                road[0,0]=round(np.random.normal(100,30)) 
+            elif i==0 and j != 0:
+                road[j,0]=round(road[j-1,0]*R1*R3) # sum of the traffics from the border
+            elif i != 0 and j==0:
+                road[0,i]=round(road[0,i-1]*R2*R3)
+            else:
+                road[j,i]=round((road[j-1,i]*R1+road[j,i-1]*R2)/2)
+                
+            if road[j,i] >255:
+                road[j,i]=255 # if it reaches limit, do not accept more
+    road[m-1,n-1]=0 #end point
+
+    if print_out==True: #print the road map 
+        plt.figure(figsize=(7,5))
+        sns.heatmap(road.T,annot=True,cmap='jet',fmt='d',linewidth=0.5)
+        plt.show()
+    return road
+
+def perfect(m=m,n=n): #perfect navigation that takes the least cost
+    s = time.time()
+    a=list(itertools.combinations(np.arange(1,m+n-1),n-1)) # find from the all situation
+    perfect_cost=9999999999999999 #if initial velocity = 0  -> cost = 1/vel returns ZERO DIVISION ERROR
+    perfect_route=[] #route
+    cases=[] 
+    for i in a:
+        case=np.ones(m+n-2) 
+        for j in range(len(i)):
+            case[i[j]-1]=-1 # 1 for move right , -1 for move down
+        cases.append(case)
+    for i in cases:
+        cost=0
+        x=0
+        y=0
+        for j in i:
+            if j==1:
+                x+=1
+                cost+=1/velocity(road[x,y]) #cost = time (reciprocal of velocity)
+                
+            else: 
+                y+=1
+                cost+=1/velocity(road[x,y])
+        if perfect_cost > cost: # if cost is less than the perfect cost, replace it
+            perfect_cost=cost
+            perfect_route=i
+    print (perfect_cost, perfect_route)
+    e = time.time() 
+    print (e-s) #execution time
+    return perfect_cost, perfect_route
+
+def optimal(m=m,n=n): #optimal navigation that takes the least time (in real time)
+    s = time.time()
+    x=0
+    y=0
+    app_cost=0 #optimal cost
+    app_route=[] #optimal route
+    for i in range(m+n-3):
+        if x != m-1 and y !=n-1 :
+            if road[x+1,y] < road[x,y+1]:
+                x = x+1
+                app_route.append(1) # 1 for move right
+            else:
+                y = y+1
+                app_route.append(-1) # -1 for move down
+        elif x == m-1:
+            y=y+1
+            app_route.append(-1)
+        elif y == n-1:
+            x=x+1
+            app_route.append(1)
+        
+        app_cost += 1/velocity(road[x,y])
+    app_cost+=1/velocity(road[m-1,n-1])
+    e = time.time() 
+    print( app_cost,app_route) 
+    print(e-s) #execution time
+    return app_cost,app_route
+  
+def navigation(n): #navigate n cars from the road map
+    global cars
+    global total_costs
+    global average_costs
+    cars=[]
+    total_costs=0
+    for i in range(n):
+        cars.append(optimal()[1])
+        total_costs += (optimal()[0])
+        x=0
+        y=0
+        for j in cars[i]:
+            if j>0:
+                x = x+1
+                road[x,y] += 2
+            else:
+                y = y+1
+                road[x,y] += 2
+    plt.figure(figsize=(5,5)) 
+    plt.imshow(road.T, cmap='rainbow')
+    plt.show() #navigation shows the result that the traffic is distributed 
+    average_cost=total_costs/n
+    return total_costs, average_cost
+
+traffic(10,10) #sample road
+perfect(10,10) #sample perfect navigation for the road
+optimal(10,10) #sample optimal navigation for the road
+navigation(30) #sample navigation for 30 cars on the road
